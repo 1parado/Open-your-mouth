@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { AudioLines, LayoutGrid, MessageCircleMore, UserRound, Waves } from "lucide-react";
+import { AudioLines, LayoutGrid, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
-  { href: "/", label: "工作台", icon: LayoutGrid },
-  { href: "/coach", label: "助教", icon: MessageCircleMore },
-  { href: "/practice", label: "发音", icon: Waves },
+  { href: "/", label: "老师", icon: LayoutGrid },
   { href: "/tools", label: "语音", icon: AudioLines },
   { href: "/history", label: "我的", icon: UserRound },
 ];
@@ -29,7 +27,7 @@ export function AppHeader() {
           {user?.displayName || "欢迎回来"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          你的口语空间
+          选择一位老师，直接开始口语练习
         </p>
       </div>
 
