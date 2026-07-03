@@ -281,3 +281,112 @@ npm install -D typescript @types/node @types/pg tsx
 - 网络延迟
 - 上游 AI 服务响应时间
 - 查询复杂度
+
+---
+
+## 前端技术栈
+
+### Web 端
+
+**Next.js 14+ (React 18+)**
+
+选择理由：
+- 完整的 React 全栈框架，支持 SSR/SSG
+- App Router 模式，服务端组件提升性能
+- 优秀的 TypeScript 支持
+- 文件系统路由，开发效率高
+- 生态成熟，社区活跃
+
+核心依赖：
+- **React 18**: UI 框架
+- **TypeScript**: 类型安全
+- **Tailwind CSS**: 原子化 CSS，开发效率高
+- **shadcn/ui**: 基于 Tailwind 的组件库
+- **TanStack Query (React Query)**: 服务端状态管理
+- **Zustand**: 客户端状态管理
+- **axios**: HTTP 客户端
+
+### 移动端 & 桌面端
+
+**Flutter 3.19+**
+
+选择理由：
+- 一套代码覆盖 iOS、Android、Windows、macOS、Linux
+- 优秀的跨平台性能和一致的 UI 体验
+- 热重载开发效率高
+- 支持 Web 嵌入（可选方案）
+- 丰富的插件生态
+
+核心依赖：
+- **flutter_bloc**: 状态管理
+- **dio**: HTTP 客户端
+- **get_it / injectable**: 依赖注入
+- **freezed**: 不可变数据类
+- **shared_preferences**: 本地存储
+- **audioplayers**: 音频播放
+- **record**: 音频录制
+- **web_socket_channel**: WebSocket 通信
+
+### 前后端交互
+
+**API 通信**: RESTful API + WebSocket
+- 认证: JWT (Bearer Token)
+- 数据格式: JSON
+- 实时通信: WebSocket (口语练习)
+
+### 前端项目结构
+
+```
+frontend/
+├── web/                    # Next.js Web 端
+│   ├── src/
+│   │   ├── app/           # App Router
+│   │   ├── components/    # 组件
+│   │   ├── hooks/         # 自定义 Hooks
+│   │   ├── lib/           # 工具函数
+│   │   ├── stores/        # 状态管理
+│   │   └── types/         # TypeScript 类型
+│   └── package.json
+│
+├── mobile/                 # Flutter 移动端 + 桌面端
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── models/        # 数据模型
+│   │   ├── views/         # 页面
+│   │   ├── widgets/       # 组件
+│   │   ├── blocs/         # BLoC 状态管理
+│   │   ├── services/      # 服务层（API、WebSocket）
+│   │   └── utils/         # 工具函数
+│   └── pubspec.yaml
+│
+└── shared/                 # 共享代码（类型定义、常量等）
+    └── src/
+```
+
+### 前端安装清单
+
+#### Web (Next.js)
+```bash
+# 初始化
+npx create-next-app@latest web --typescript --tailwind --eslint --app --src-dir
+
+# 核心依赖
+cd web
+npm install @tanstack/react-query zustand axios
+
+# UI 组件库
+npm install -D @shadcn/ui
+```
+
+#### Mobile & Desktop (Flutter)
+```bash
+# 创建项目
+flutter create --org com.aioralteacher mobile
+
+cd mobile
+
+# 添加依赖 (pubspec.yaml)
+flutter pub add flutter_bloc dio get_it injectable freezed_annotation json_annotation
+flutter pub add --dev build_runner freezed json_serializable injectable_generator
+flutter pub add shared_preferences audioplayers record web_socket_channel
+```

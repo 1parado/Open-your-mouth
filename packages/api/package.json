@@ -4,7 +4,7 @@
   "description": "API Service for AI Oral Teacher",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx -r dotenv/config watch src/index.ts",
+    "dev": "tsx watch --require dotenv/config src/index.ts",
     "build": "tsc",
     "start": "node -r dotenv/config dist/index.js",
     "lint": "eslint src --ext .ts",
