@@ -1,0 +1,45 @@
+app:
+  env: development
+  port: 8090
+  storage:
+    type: local
+    rootDir: ./storage
+
+providers:
+  active:
+    llm: openai-llm
+    asr: openai-asr
+    tts: openai-tts
+    pronunciation: mock-pronunciation
+
+  llm:
+    openai-llm:
+      protocol: openai-compatible
+      baseUrl: https://api.openai.com/v1
+      apiKey: ${LLM_API_KEY}
+      model: gpt-4o-mini
+      timeoutMs: 30000
+
+  asr:
+    openai-asr:
+      protocol: openai-compatible
+      baseUrl: https://api.openai.com/v1
+      apiKey: ${ASR_API_KEY}
+      model: whisper-1
+      timeoutMs: 30000
+
+  tts:
+    openai-tts:
+      protocol: openai-compatible
+      baseUrl: https://api.openai.com/v1
+      apiKey: ${TTS_API_KEY}
+      model: tts-1
+      timeoutMs: 30000
+
+  pronunciation:
+    mock-pronunciation:
+      protocol: openai-compatible
+      baseUrl: http://localhost:8092/v1
+      apiKey: mock-key
+      model: pronunciation-v1
+      timeoutMs: 45000

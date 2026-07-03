@@ -1,0 +1,10 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    prefer_const_constructors: true
+    prefer_final_fields: true
+    avoid_print: true
+    prefer_const_declarations: true
+    sort_child_properties_last: true

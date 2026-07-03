@@ -12,20 +12,27 @@ export function loadConfig(): AppConfig {
   // Try to find config in project root
   const configPath = join(projectRoot, 'config', 'providers.yaml');
   const content = readFileSync(configPath, 'utf-8');
-  const raw = yaml.load(content) as any;
+  const raw = yaml.load(content);
 
   // Replace environment variables in the config
-  const config = replaceEnvVars(raw);
+  const config = replaceEnvVars(raw) as Partial<AppConfig> & {
+    app?: Partial<AppConfig['app']>;
+  };
 
-  // Set defaults
-  config.app = config.app || {};
-  config.app.port = config.app.port || parseInt(process.env.PORT || '8090');
-  config.app.env = config.app.env || process.env.NODE_ENV || 'development';
-
-  return config as AppConfig;
+  return {
+    ...config,
+    app: {
+      storage: config.app?.storage ?? {
+        type: 'local',
+        rootDir: './storage',
+      },
+      port: config.app?.port ?? parseInt(process.env.PORT || '8090'),
+      env: config.app?.env ?? process.env.NODE_ENV ?? 'development',
+    },
+  } as AppConfig;
 }
 
-function replaceEnvVars(obj: any): any {
+function replaceEnvVars(obj: unknown): unknown {
   if (typeof obj === 'string') {
     // Replace ${VAR_NAME} with environment variable
     const match = obj.match(/^\$\{(.+)\}$/);
@@ -45,9 +52,9 @@ function replaceEnvVars(obj: any): any {
   }
 
   if (obj && typeof obj === 'object') {
-    const result: any = {};
-    for (const key in obj) {
-      result[key] = replaceEnvVars(obj[key]);
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceEnvVars(value);
     }
     return result;
   }

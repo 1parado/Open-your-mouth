@@ -1,6 +1,6 @@
-import type { FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 
-export function errorHandler(error: Error, request: FastifyRequest, reply: FastifyReply) {
+export function errorHandler(error: FastifyError, request: FastifyRequest, reply: FastifyReply) {
   const logger = request.log;
 
   logger.error({

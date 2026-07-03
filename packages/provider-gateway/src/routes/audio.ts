@@ -1,15 +1,31 @@
-import type { FastifyRequest, FastifyReply } from 'fastify';
+import type {
+  FastifyBaseLogger,
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+} from 'fastify';
+import FormData from 'form-data';
 import { HttpClient } from '../utils/http-client';
 import { resolveProvider } from '../config/loader';
 import type { AppConfig } from '../config/types';
-import type { MultipartFile } from '@fastify/multipart';
+import { getProviderErrorDetails } from '../utils/provider-error';
+
+interface AudioSpeechBody {
+  model?: string;
+  format?: string;
+  [key: string]: unknown;
+}
+
+interface MultipartFieldValue {
+  value: string;
+}
 
 export interface AudioRouteContext {
   config: AppConfig;
-  logger: any;
+  logger: FastifyBaseLogger;
 }
 
-export function registerAudioRoutes(app: any, context: AudioRouteContext) {
+export function registerAudioRoutes(app: FastifyInstance, context: AudioRouteContext) {
   // ASR: POST /v1/audio/transcriptions
   app.post('/v1/audio/transcriptions', async (request: FastifyRequest, reply: FastifyReply) => {
     const { config, logger } = context;
@@ -31,7 +47,6 @@ export function registerAudioRoutes(app: any, context: AudioRouteContext) {
       }
 
       // Create FormData for upstream request
-      const FormData = require('form-data');
       const formData = new FormData();
       formData.append('file', data.file, {
         filename: data.filename,
@@ -39,10 +54,10 @@ export function registerAudioRoutes(app: any, context: AudioRouteContext) {
       });
 
       // Add other fields from the original request
-      const fields = (data as any).fields;
+      const fields = data.fields as Record<string, MultipartFieldValue> | undefined;
       if (fields) {
         for (const [key, value] of Object.entries(fields)) {
-          formData.append(key, (value as any).value);
+          formData.append(key, value.value);
         }
       }
 
@@ -57,11 +72,9 @@ export function registerAudioRoutes(app: any, context: AudioRouteContext) {
       });
 
       reply.send(response.data);
-    } catch (error: any) {
-      logger.error({ type: 'asr_error', error: error.message });
-
-      const status = error.response?.status || 500;
-      const message = error.response?.data?.error?.message || error.message || 'Internal server error';
+    } catch (error: unknown) {
+      const { status, message, logMessage } = getProviderErrorDetails(error);
+      logger.error({ type: 'asr_error', error: logMessage });
 
       reply.status(status).send({
         error: {
@@ -74,9 +87,12 @@ export function registerAudioRoutes(app: any, context: AudioRouteContext) {
   });
 
   // TTS: POST /v1/audio/speech
-  app.post('/v1/audio/speech', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/v1/audio/speech', async (
+    request: FastifyRequest<{ Body: AudioSpeechBody }>,
+    reply: FastifyReply,
+  ) => {
     const { config, logger } = context;
-    const body = request.body as any;
+    const body = request.body;
 
     try {
       // Resolve provider
@@ -104,11 +120,9 @@ export function registerAudioRoutes(app: any, context: AudioRouteContext) {
       });
 
       response.data.pipe(reply.raw);
-    } catch (error: any) {
-      logger.error({ type: 'tts_error', error: error.message });
-
-      const status = error.response?.status || 500;
-      const message = error.response?.data?.error?.message || error.message || 'Internal server error';
+    } catch (error: unknown) {
+      const { status, message, logMessage } = getProviderErrorDetails(error);
+      logger.error({ type: 'tts_error', error: logMessage });
 
       reply.status(status).send({
         error: {
