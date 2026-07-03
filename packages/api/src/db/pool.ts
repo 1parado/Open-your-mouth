@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 export const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'oral_teacher',
-  user: process.env.DB_USER || 'postgres',
+  user: process.env.DB_USER || 'postgre',
   password: process.env.DB_PASSWORD || '123456',
   port: parseInt(process.env.DB_PORT || '5432'),
   max: 20,
