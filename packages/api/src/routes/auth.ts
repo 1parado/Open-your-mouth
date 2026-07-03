@@ -1,10 +1,41 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { hashPassword, comparePassword } from '../utils/hash';
-import { generateAccessToken, generateRefreshToken, verifyAccessToken } from '../utils/jwt';
+import {
+  REFRESH_TOKEN_TTL_MS,
+  generateAccessToken,
+  generateRefreshToken,
+  hashRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+} from '../utils/jwt';
 import { queryOne, query } from '../db/queries';
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/error';
 import { registerSchema, loginSchema } from '../utils/validation';
+
+function getDefaultDisplayName(email: string): string {
+  return email.split('@')[0] || email;
+}
+
+async function persistRefreshToken(
+  userId: string,
+  refreshToken: string,
+  request: FastifyRequest,
+): Promise<void> {
+  const userAgent = request.headers['user-agent'];
+
+  await query(
+    `INSERT INTO auth_sessions (user_id, refresh_token_hash, ip, user_agent, expired_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [
+      userId,
+      hashRefreshToken(refreshToken),
+      request.ip,
+      Array.isArray(userAgent) ? userAgent.join(', ') : userAgent ?? null,
+      new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+    ],
+  );
+}
 
 const auth: FastifyPluginAsync = async (fastify) => {
   fastify.post('/register', async (request: FastifyRequest<{ Body: RegisterBody }>, reply: FastifyReply) => {
@@ -15,7 +46,10 @@ const auth: FastifyPluginAsync = async (fastify) => {
 
     const { email, password, displayName } = result.data;
 
-    const existing = await queryOne<UserRow>('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = await queryOne<UserRow>(
+      'SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL',
+      [email],
+    );
     if (existing) {
       throw new ApiError(409, 'Email already registered', 'EMAIL_EXISTS');
     }
@@ -24,7 +58,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
 
     const user = await queryOne<UserRow>(
       'INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name, created_at',
-      [email, passwordHash, displayName || null]
+      [email, passwordHash, displayName || getDefaultDisplayName(email)],
     );
 
     if (!user) {
@@ -35,10 +69,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-      [user.id, refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
-    );
+    await persistRefreshToken(user.id, refreshToken, request);
 
     logger.info({ userId: user.id }, 'User registered');
 
@@ -63,11 +94,13 @@ const auth: FastifyPluginAsync = async (fastify) => {
     const { email, password } = result.data;
 
     const user = await queryOne<UserRow>(
-      'SELECT id, email, password_hash, display_name, created_at FROM users WHERE email = $1',
-      [email]
+      `SELECT id, email, password_hash, display_name, created_at
+       FROM users
+       WHERE email = $1 AND deleted_at IS NULL AND status = 'active'`,
+      [email],
     );
 
-    if (!user) {
+    if (!user || !user.password_hash) {
       throw new ApiError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
@@ -80,10 +113,9 @@ const auth: FastifyPluginAsync = async (fastify) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-      [user.id, refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
-    );
+    await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+
+    await persistRefreshToken(user.id, refreshToken, request);
 
     logger.info({ userId: user.id }, 'User logged in');
 
@@ -100,31 +132,43 @@ const auth: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post('/refresh', async (request: FastifyRequest<{ Body: { refresh_token: string } }>, reply: FastifyReply) => {
-    const { refresh_token } = request.body;
-    if (!refresh_token) {
+    const refreshToken = request.body?.refresh_token;
+    if (!refreshToken) {
       throw new ApiError(400, 'Refresh token is required', 'MISSING_REFRESH_TOKEN');
     }
 
+    let payload: { userId: string; email: string };
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw new ApiError(401, 'Invalid or expired refresh token', 'INVALID_REFRESH_TOKEN');
+    }
+
     const tokenRow = await queryOne<{ user_id: string }>(
-      'SELECT user_id FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()',
-      [refresh_token]
+      `SELECT user_id
+       FROM auth_sessions
+       WHERE refresh_token_hash = $1
+         AND expired_at > NOW()
+         AND revoked_at IS NULL`,
+      [hashRefreshToken(refreshToken)],
     );
 
-    if (!tokenRow) {
+    if (!tokenRow || tokenRow.user_id !== payload.userId) {
       throw new ApiError(401, 'Invalid or expired refresh token', 'INVALID_REFRESH_TOKEN');
     }
 
     const user = await queryOne<{ id: string; email: string }>(
-      'SELECT id, email FROM users WHERE id = $1',
-      [tokenRow.user_id]
+      `SELECT id, email
+       FROM users
+       WHERE id = $1 AND deleted_at IS NULL AND status = 'active'`,
+      [tokenRow.user_id],
     );
 
     if (!user) {
       throw new ApiError(401, 'User not found', 'USER_NOT_FOUND');
     }
 
-    const tokenPayload = { userId: user.id, email: user.email };
-    const newAccessToken = generateAccessToken(tokenPayload);
+    const newAccessToken = generateAccessToken({ userId: user.id, email: user.email });
 
     reply.send({
       access_token: newAccessToken,
@@ -142,26 +186,30 @@ const auth: FastifyPluginAsync = async (fastify) => {
       throw new ApiError(401, 'Invalid Authorization header format', 'UNAUTHORIZED');
     }
 
+    let payload: { userId: string; email: string };
     try {
-      const payload = verifyAccessToken(parts[1]);
-      const userInfo = await queryOne<{ id: string; email: string; display_name: string | null; created_at: Date }>(
-        'SELECT id, email, display_name, created_at FROM users WHERE id = $1',
-        [payload.userId]
-      );
-
-      if (!userInfo) {
-        throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
-      }
-
-      reply.send({
-        id: userInfo.id,
-        email: userInfo.email,
-        displayName: userInfo.display_name,
-        createdAt: userInfo.created_at,
-      });
-    } catch (err) {
+      payload = verifyAccessToken(parts[1]);
+    } catch {
       throw new ApiError(401, 'Invalid or expired token', 'UNAUTHORIZED');
     }
+
+    const userInfo = await queryOne<{ id: string; email: string; display_name: string | null; created_at: Date }>(
+      `SELECT id, email, display_name, created_at
+       FROM users
+       WHERE id = $1 AND deleted_at IS NULL AND status = 'active'`,
+      [payload.userId],
+    );
+
+    if (!userInfo) {
+      throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
+    }
+
+    reply.send({
+      id: userInfo.id,
+      email: userInfo.email,
+      displayName: userInfo.display_name,
+      createdAt: userInfo.created_at,
+    });
   });
 };
 

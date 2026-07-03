@@ -875,6 +875,7 @@ CREATE UNIQUE INDEX uq_user_devices_platform_device_active
   WHERE deleted_at IS NULL;
 CREATE INDEX idx_auth_sessions_user_id ON auth_sessions(user_id);
 CREATE INDEX idx_auth_sessions_expired_at ON auth_sessions(expired_at);
+CREATE INDEX idx_auth_sessions_refresh_token_hash ON auth_sessions(refresh_token_hash);
 
 CREATE INDEX idx_org_members_org_id ON organization_members(organization_id);
 CREATE UNIQUE INDEX uq_org_members_org_user_active
