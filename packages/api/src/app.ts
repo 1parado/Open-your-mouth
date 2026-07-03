@@ -2,14 +2,19 @@ import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { errorHandler } from './middleware/error';
 import { requestLogger } from './middleware/logger';
-import { logger } from './utils/logger';
 import authRoutes from './routes/auth';
 import { testConnection } from './db/pool';
 import { runMigrations } from './db/migrations';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: logger,
+    logger: {
+      level: process.env.LOG_LEVEL || 'info',
+      transport: {
+        target: 'pino-pretty',
+        options: { colorize: true },
+      },
+    },
   });
 
   await app.register(cors, {

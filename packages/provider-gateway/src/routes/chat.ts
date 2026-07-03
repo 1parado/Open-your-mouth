@@ -1,17 +1,32 @@
-import type { FastifyRequest, FastifyReply } from 'fastify';
+import type {
+  FastifyBaseLogger,
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+} from 'fastify';
 import { HttpClient } from '../utils/http-client';
 import { resolveProvider } from '../config/loader';
 import type { AppConfig } from '../config/types';
+import { getProviderErrorDetails } from '../utils/provider-error';
+
+interface ChatCompletionBody {
+  model?: string;
+  stream?: boolean;
+  [key: string]: unknown;
+}
 
 export interface LLMRouteContext {
   config: AppConfig;
-  logger: any;
+  logger: FastifyBaseLogger;
 }
 
-export function registerLLMRoutes(app: any, context: LLMRouteContext) {
-  app.post('/v1/chat/completions', async (request: FastifyRequest, reply: FastifyReply) => {
+export function registerLLMRoutes(app: FastifyInstance, context: LLMRouteContext) {
+  app.post('/v1/chat/completions', async (
+    request: FastifyRequest<{ Body: ChatCompletionBody }>,
+    reply: FastifyReply,
+  ) => {
     const { config, logger } = context;
-    const body = request.body as any;
+    const body = request.body;
 
     try {
       // Resolve provider
@@ -43,11 +58,9 @@ export function registerLLMRoutes(app: any, context: LLMRouteContext) {
         const response = await client.post('/chat/completions', requestBody);
         reply.send(response.data);
       }
-    } catch (error: any) {
-      logger.error({ type: 'llm_error', error: error.message });
-
-      const status = error.response?.status || 500;
-      const message = error.response?.data?.error?.message || error.message || 'Internal server error';
+    } catch (error: unknown) {
+      const { status, message, logMessage } = getProviderErrorDetails(error);
+      logger.error({ type: 'llm_error', error: logMessage });
 
       reply.status(status).send({
         error: {

@@ -1,14 +1,20 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  isAxiosError,
+} from 'axios';
+import type { FastifyBaseLogger } from 'fastify';
 import type { OpenAICompatibleProviderConfig } from '../config/types';
 
 export interface HttpClientOptions {
   provider: OpenAICompatibleProviderConfig;
-  logger?: any;
+  logger?: FastifyBaseLogger;
 }
 
 export class HttpClient {
   private client: AxiosInstance;
-  private logger: any;
+  private logger?: FastifyBaseLogger;
   private maxRetries = 3;
   private retryDelay = 1000;
 
@@ -57,18 +63,25 @@ export class HttpClient {
     );
   }
 
-  async request<T = any>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    let lastError: any;
+  async request<T = unknown, D = unknown>(
+    config: AxiosRequestConfig<D>,
+  ): Promise<AxiosResponse<T>> {
+    let lastError: unknown;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
         const response = await this.client.request<T>(config);
         return response;
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
 
         // Don't retry on client errors (4xx)
-        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+        if (
+          isAxiosError(error) &&
+          error.response &&
+          error.response.status >= 400 &&
+          error.response.status < 500
+        ) {
           throw error;
         }
 
@@ -83,7 +96,7 @@ export class HttpClient {
           type: 'http_retry',
           attempt: attempt + 1,
           delay,
-          error: error.message,
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
 
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -93,15 +106,26 @@ export class HttpClient {
     throw lastError;
   }
 
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  async post<T = unknown, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<AxiosResponse<T>> {
     return this.request<T>({ ...config, method: 'post', url, data });
   }
 
-  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  async get<T = unknown>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> {
     return this.request<T>({ ...config, method: 'get', url });
   }
 
-  async stream(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse> {
+  async stream<D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig<D>,
+  ): Promise<AxiosResponse<NodeJS.ReadableStream>> {
     return this.request({
       ...config,
       method: 'post',

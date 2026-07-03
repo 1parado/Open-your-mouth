@@ -1,6 +1,5 @@
 import type { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
 import { verifyAccessToken, type TokenPayload } from '../utils/jwt';
-import { ApiError } from './error';
 import { logger } from '../utils/logger';
 
 // Extend FastifyRequest to include user

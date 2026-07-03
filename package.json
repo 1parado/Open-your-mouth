@@ -4,7 +4,8 @@
   "description": "AI Oral Teacher - OpenAI Compatible Gateway System",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "frontend/web"
   ],
   "scripts": {
     "dev:gateway": "npm run dev --workspace=provider-gateway",
@@ -12,7 +13,7 @@
     "dev:orchestrator": "npm run dev --workspace=realtime-orchestrator",
     "dev:worker": "npm run dev --workspace=worker",
     "build": "npm run build --workspaces",
-    "lint": "eslint . --ext .ts",
+    "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"packages/**/*.ts\""
   },
   "devDependencies": {

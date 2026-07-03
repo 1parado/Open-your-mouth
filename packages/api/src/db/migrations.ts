@@ -1,6 +1,10 @@
 import { pool } from './pool';
 import { logger } from '../utils/logger';
 
+function hasErrorCode(error: unknown): error is { code?: string } {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
+
 const MIGRATIONS = [
   // Create users table
   {
@@ -39,8 +43,8 @@ export async function runMigrations(): Promise<void> {
       try {
         await client.query(migration.sql);
         logger.info(`Migration passed: ${migration.name}`);
-      } catch (err: any) {
-        if (err.code !== '42P07') {
+      } catch (err: unknown) {
+        if (!hasErrorCode(err) || err.code !== '42P07') {
           throw err;
         }
         logger.info(`Skipped: ${migration.name} (already exists)`);
