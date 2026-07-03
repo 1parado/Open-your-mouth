@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import { buildApp, initializeDatabase } from './app';
 import { logger } from './utils/logger';
 
