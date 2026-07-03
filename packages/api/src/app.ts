@@ -4,7 +4,8 @@ import { errorHandler } from './middleware/error';
 import { requestLogger } from './middleware/logger';
 import { logger } from './utils/logger';
 import authRoutes from './routes/auth';
-import { testConnection, runMigrations } from './db/migrations';
+import { testConnection } from './db/pool';
+import { runMigrations } from './db/migrations';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
