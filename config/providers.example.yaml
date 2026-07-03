@@ -1,0 +1,68 @@
+app:
+  env: development
+  storage:
+    type: local
+    rootDir: ./storage
+
+providers:
+  active:
+    llm: openai-llm
+    asr: openai-asr
+    tts: openai-tts
+    pronunciation: custom-pronunciation
+
+  llm:
+    openai-llm:
+      protocol: openai-compatible
+      baseUrl: ${LLM_BASE_URL}
+      apiKey: ${LLM_API_KEY}
+      model: ${LLM_MODEL}
+      timeoutMs: 30000
+    azure-openai-llm:
+      protocol: openai-compatible
+      baseUrl: ${AZURE_OPENAI_BASE_URL}
+      apiKey: ${AZURE_OPENAI_API_KEY}
+      model: ${AZURE_OPENAI_MODEL}
+      timeoutMs: 30000
+
+  asr:
+    openai-asr:
+      protocol: openai-compatible
+      baseUrl: ${ASR_BASE_URL}
+      apiKey: ${ASR_API_KEY}
+      model: ${ASR_MODEL}
+      timeoutMs: 30000
+    azure-openai-asr:
+      protocol: openai-compatible
+      baseUrl: ${AZURE_ASR_BASE_URL}
+      apiKey: ${AZURE_ASR_API_KEY}
+      model: ${AZURE_ASR_MODEL}
+      timeoutMs: 30000
+
+  tts:
+    openai-tts:
+      protocol: openai-compatible
+      baseUrl: ${TTS_BASE_URL}
+      apiKey: ${TTS_API_KEY}
+      model: ${TTS_MODEL}
+      timeoutMs: 30000
+    azure-openai-tts:
+      protocol: openai-compatible
+      baseUrl: ${AZURE_TTS_BASE_URL}
+      apiKey: ${AZURE_TTS_API_KEY}
+      model: ${AZURE_TTS_MODEL}
+      timeoutMs: 30000
+
+  pronunciation:
+    custom-pronunciation:
+      protocol: openai-compatible
+      baseUrl: ${PRONUNCIATION_BASE_URL}
+      apiKey: ${PRONUNCIATION_API_KEY}
+      model: ${PRONUNCIATION_MODEL}
+      timeoutMs: 45000
+    azure-pronunciation:
+      protocol: openai-compatible
+      baseUrl: ${AZURE_PRONUNCIATION_BASE_URL}
+      apiKey: ${AZURE_PRONUNCIATION_API_KEY}
+      model: ${AZURE_PRONUNCIATION_MODEL}
+      timeoutMs: 45000

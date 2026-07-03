@@ -1,0 +1,31 @@
+{
+  "name": "ai-oral-teacher",
+  "version": "1.0.0",
+  "description": "AI Oral Teacher - OpenAI Compatible Gateway System",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:gateway": "npm run dev --workspace=provider-gateway",
+    "dev:api": "npm run dev --workspace=api",
+    "dev:orchestrator": "npm run dev --workspace=realtime-orchestrator",
+    "dev:worker": "npm run dev --workspace=worker",
+    "build": "npm run build --workspaces",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"packages/**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

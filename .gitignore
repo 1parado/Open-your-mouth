@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Storage
+storage/recordings/*
+storage/tts-cache/*
+storage/reports/*
+!storage/.gitkeep
+
+# Test
+coverage/
+.nyc_output/
+
+# Temporary
+tmp/
+temp/
+
+# Test files (may contain real API keys or sensitive data)
+test-gateway.ps1
+test-*.json
+
+# Config files with actual credentials
+# config/.env and config/providers.yaml should use .env.example and .yaml.example templates
+# Keep only example templates in repo
