@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { AudioLines, MessageCircleMore, UserRound, Waves } from "lucide-react";
+import { Mic, Sparkles, UserRound, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
@@ -211,31 +211,31 @@ export default function LoginPage() {
 
         <Card className="app-surface">
           <CardHeader>
-            <CardTitle>包含模块</CardTitle>
-            <CardDescription>登录后可直接进入。</CardDescription>
+            <CardTitle>登录后你会进入</CardTitle>
+            <CardDescription>老师卡片首页，而不是工具列表。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              <MessageCircleMore className="h-4 w-4 text-slate-500" />
+              <Sparkles className="h-4 w-4 text-slate-500" />
               <div>
-                <p className="font-medium text-slate-900">口语助教</p>
-                <p className="mt-1 leading-6 text-slate-600">生成自然回复</p>
+                <p className="font-medium text-slate-900">不同老师卡片</p>
+                <p className="mt-1 leading-6 text-slate-600">每位老师有不同人设和提示词</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              <Waves className="h-4 w-4 text-slate-500" />
+              <Mic className="h-4 w-4 text-slate-500" />
               <div>
-                <p className="font-medium text-slate-900">发音练习</p>
-                <p className="mt-1 leading-6 text-slate-600">一句英文快速评分</p>
+                <p className="font-medium text-slate-900">语音对话练习</p>
+                <p className="mt-1 leading-6 text-slate-600">点击老师后直接开始说话</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-              <AudioLines className="h-4 w-4 text-slate-500" />
+              <Volume2 className="h-4 w-4 text-slate-500" />
               <div>
-                <p className="font-medium text-slate-900">语音工具</p>
-                <p className="mt-1 leading-6 text-slate-600">转写与播报</p>
+                <p className="font-medium text-slate-900">老师专属语音</p>
+                <p className="mt-1 leading-6 text-slate-600">不同老师使用不同 voice 配置</p>
               </div>
             </div>
 
