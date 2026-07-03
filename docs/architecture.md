@@ -1,301 +1,217 @@
-# AI Oral Teacher - 系统架构设计
+# 分阶段架构说明
 
-## 系统概述
+## 架构原则
 
-AI 口语老师是一个基于 AI 的英语口语教学系统，通过实时对话、发音评测、语法纠错等功能帮助用户提升口语能力。
+当前产品不是通用 AI 工具集合，而是“老师驱动的口语练习产品”。  
+因此系统架构应当服务于以下核心链路：
 
-## 核心设计原则
+1. 用户登录
+2. 选择老师
+3. 进入练习
+4. 用户说话
+5. 老师回复
+6. 产生反馈
+7. 逐步升级为数字人
 
-### 1. 供应商无关性
+## 当前阶段架构
 
-所有 AI 能力（LLM、ASR、TTS、发音评测）通过统一的 OpenAI 兼容接口访问，业务层不感知具体供应商。
-
-### 2. 配置驱动
-
-供应商切换只需修改配置文件，无需改动业务代码。
-
-### 3. 微服务架构
-
-系统拆分为独立服务，各司其职，便于扩展和维护。
-
-## 系统架构图
+当前最简可运行架构如下：
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Client Layer                         │
-│                    (Web / Mobile / Desktop)                  │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            │ HTTP/WebSocket
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│                         API Gateway                          │
-│                    (Nginx / API Gateway)                     │
-└───────┬───────────────────┬─────────────────────┬───────────┘
-        │                   │                     │
-        │                   │                     │
-┌───────▼────────┐ ┌───────▼────────┐  ┌────────▼──────────┐
-│   API Service  │ │   Realtime     │  │  Provider Gateway │
-│                │ │  Orchestrator  │  │                   │
-│ • 用户管理     │ │                │  │ • LLM Adapter     │
-│ • 课程管理     │ │ • 会话管理     │  │ • ASR Adapter     │
-│ • 场景管理     │ │ • 句子切分     │  │ • TTS Adapter     │
-│ • 报告查询     │ │ • 打断控制     │  │ • Pronunciation   │
-│ • 鉴权         │ │ • 实时对话     │  │   Adapter         │
-└───────┬────────┘ └───────┬────────┘  └────────┬──────────┘
-        │                   │                     │
-        │                   │                     │
-        │          ┌────────▼─────────┐          │
-        │          │  Message Queue   │          │
-        │          │     (Redis)      │          │
-        │          └────────┬─────────┘          │
-        │                   │                     │
-        │          ┌────────▼─────────┐          │
-        └──────────►   Worker Service  ◄──────────┘
-                   │                   │
-                   │ • 异步发音评测   │
-                   │ • 语法纠错       │
-                   │ • 课后总结       │
-                   │ • 复习任务生成   │
-                   └────────┬─────────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-┌───────▼────────┐ ┌───────▼────────┐ ┌───────▼────────┐
-│   PostgreSQL   │ │     Redis      │ │ Local Storage  │
-│                │ │                │ │                │
-│ • 业务数据     │ │ • 会话状态     │ │ • 录音文件     │
-│ • 用户数据     │ │ • 缓存         │ │ • 合成语音     │
-│ • 练习记录     │ │ • 队列         │ │ • 报告文件     │
-└────────────────┘ └────────────────┘ └────────────────┘
+Web Client
+  ├─ 登录
+  ├─ 老师卡片首页
+  └─ 老师会话页
+       ├─ 调用 /v1/chat/completions
+       └─ 调用 /v1/audio/speech
+
+API Service
+  └─ 用户鉴权
+
+Provider Gateway
+  ├─ LLM
+  ├─ ASR
+  ├─ TTS
+  └─ Pronunciation
 ```
 
-## 服务详细设计
+这个阶段的重点不是全量后端，而是尽快形成可体验的老师产品主链路。
 
-### 1. API Service
+## Phase 1：前端驱动架构
 
-**职责**：
-- 用户注册、登录、鉴权
-- 课程、场景、练习记录的 CRUD
-- 学习报告查询
-- 媒体资源管理
+### 特点
 
-**技术栈**：
-- Node.js + TypeScript
-- Fastify / Express
-- pg (PostgreSQL client)
-- ioredis (Redis client)
-- JWT 认证
+- 老师配置可先放在前端静态文件
+- 老师差异通过 `prompt + voice + 展示文案` 实现
+- 用户会话可以先不持久化
+- 语音识别可以先用浏览器能力
 
-**核心接口**：
-- `POST /api/v1/auth/register` - 用户注册
-- `POST /api/v1/auth/login` - 用户登录
-- `GET /api/v1/courses` - 课程列表
-- `GET /api/v1/scenarios/:id` - 场景详情
-- `GET /api/v1/sessions/:id/report` - 练习报告
+### 适用原因
 
-### 2. Provider Gateway
+- 开发快
+- 能快速验证老师体验
+- 能证明产品不是“工具页集合”
 
-**职责**：
-- 统一 AI 能力接口
-- 路由请求到真实上游供应商
-- 统一错误处理、重试、超时
-- 请求日志和监控
+## Phase 2：老师系统架构
 
-**技术栈**：
-- Node.js + TypeScript
-- Fastify
-- axios / node-fetch
-- YAML 配置解析
+### 新增核心域
 
-**核心接口**：
-- `POST /v1/chat/completions` - LLM 对话
-- `POST /v1/audio/transcriptions` - 语音转文字
-- `POST /v1/audio/speech` - 文字转语音
-- `POST /v1/pronunciation/assessments` - 发音评测
+- Teacher
+- VoiceProfile
+- AvatarProfile
+- Scenario
+- PracticeSession
 
-**适配器列表**：
-- LLM: OpenAI, Azure OpenAI, 其他兼容服务
-- ASR: OpenAI Whisper, Azure Speech, 其他兼容服务
-- TTS: OpenAI TTS, Azure Speech, 其他兼容服务
-- Pronunciation: 自定义评测服务（需实现）
-
-### 3. Realtime Orchestrator
-
-**职责**：
-- 实时会话管理
-- 句子切分（断句）
-- 打断控制
-- 协调 LLM、ASR、TTS 调用
-- 会话状态维护
-
-**技术栈**：
-- Node.js + TypeScript
-- WebSocket (ws / socket.io)
-- Redis (会话状态存储)
-- 事件驱动架构
-
-**工作流程**：
-1. 客户端建立 WebSocket 连接
-2. 用户说话 → 上传音频
-3. 调用 ASR 转写
-4. 调用 LLM 生成回复
-5. 调用 TTS 合成语音
-6. 返回音频给客户端
-7. 投递发音评测任务到队列
-
-### 4. Worker Service
-
-**职责**：
-- 异步任务处理
-- 发音评测
-- 语法纠错分析
-- 课后总结生成
-- 复习任务生成
-
-**技术栈**：
-- Node.js + TypeScript
-- BullMQ / Bull (任务队列)
-- Redis (队列存储)
-
-**任务类型**：
-- `pronunciation-assessment` - 发音评测
-- `grammar-check` - 语法纠错
-- `session-summary` - 课后总结
-- `review-task-generation` - 复习任务
-
-## 数据库设计
-
-### 核心表
-
-**用户相关**：
-- `users` - 用户主表
-- `user_identities` - 用户身份（支持多种登录方式）
-- `user_devices` - 用户设备
-- `auth_sessions` - 认证会话
-
-**内容相关**：
-- `courses` - 课程
-- `scenarios` - 场景
-- `dialogues` - 场景对话模板
-
-**练习相关**：
-- `practice_sessions` - 练习会话
-- `practice_turns` - 对话轮次
-- `pronunciation_assessments` - 发音评测结果
-
-**媒体相关**：
-- `media_assets` - 媒体资源
-- `media_variants` - 媒体变体
-
-## 配置管理
-
-### 配置文件结构
+### 架构变化
 
 ```
-config/
-├── providers.yaml          # 供应商配置（生产）
-├── providers.example.yaml  # 供应商配置模板
-├── .env                    # 环境变量（生产）
-└── .env.example            # 环境变量模板
+Web Client
+  ├─ GET /teachers
+  ├─ GET /teachers/:id
+  ├─ GET /teachers/:id/scenarios
+  └─ POST /practice-sessions
+
+API Service
+  ├─ Auth
+  ├─ Teachers
+  ├─ Scenarios
+  └─ Practice Sessions
 ```
 
-### 环境变量
+### 关键点
 
-- `DATABASE_URL` - PostgreSQL 连接串
-- `REDIS_URL` - Redis 连接串
-- `JWT_SECRET` - JWT 密钥
-- `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` - LLM 配置
-- `ASR_BASE_URL` / `ASR_API_KEY` / `ASR_MODEL` - ASR 配置
-- `TTS_BASE_URL` / `TTS_API_KEY` / `TTS_MODEL` - TTS 配置
-- `PRONUNCIATION_BASE_URL` / `PRONUNCIATION_API_KEY` / `PRONUNCIATION_MODEL` - 发音评测配置
+- 老师从静态配置变成真实业务实体
+- 首页和老师页都由 API 提供数据
 
-## 存储方案
+## Phase 3：实时语音架构
 
-### 本地文件存储
+### 新增服务
+
+- Realtime Orchestrator
+
+### 职责
+
+- WebSocket 会话管理
+- 实时音频输入
+- 会话状态缓存
+- 中断控制
+- 协调 ASR / LLM / TTS
+
+### 架构变化
 
 ```
-storage/
-├── recordings/           # 原始录音
-│   └── {session_id}/
-│       └── {turn_id}.wav
-├── tts-cache/           # TTS 缓存
-│   └── {hash}.mp3
-└── reports/             # 报告文件
-    └── {session_id}.pdf
+Client
+  └─ WebSocket
+       ↓
+Realtime Orchestrator
+  ├─ session manager
+  ├─ turn coordinator
+  └─ interrupt control
+       ↓
+Provider Gateway
+  ├─ ASR
+  ├─ LLM
+  └─ TTS
 ```
 
-### 媒体资源访问
+### 为什么单独拆这个服务
 
-- 数据库存储元数据（路径、大小、时长等）
-- 文件系统存储实际文件
-- API 提供统一的访问接口
+- 实时语音链路和普通 REST API 的性能模型不同
+- 中断控制和会话状态不适合直接堆在 API Service
 
-## 安全设计
+## Phase 4：反馈处理架构
 
-### 认证方案
+### 新增服务或能力
 
-- JWT Token 认证
-- Refresh Token 机制
-- Token 过期自动刷新
+- Worker Service
 
-### 权限控制
+### 职责
 
-- 用户只能访问自己的数据
-- 管理员可以访问所有数据
+- 发音评测异步处理
+- 语法纠错摘要
+- 会话总结
+- 推荐下一次练习
 
-### 数据安全
+### 架构变化
 
-- 密码使用 bcrypt 加密
-- 敏感数据传输使用 HTTPS
-- API Key 不记录在日志中
+```
+Practice Session End
+  └─ enqueue jobs
+       ↓
+Worker
+  ├─ pronunciation assessment
+  ├─ grammar summary
+  └─ session feedback
+```
 
-## 监控与日志
+### 为什么异步
 
-### 日志方案
+- 发音评测和总结不应该阻塞主对话链路
+- 用户完成练习后可以先看到核心结果，再逐步补充完整反馈
 
-- 结构化日志（JSON 格式）
-- 日志级别：DEBUG / INFO / WARN / ERROR
-- 日志轮转和归档
+## Phase 5：数字人架构
 
-### 监控指标
+### 新增能力
 
-- API 请求量、响应时间
-- 供应商 API 调用量、成功率、响应时间
-- 任务队列积压情况
-- 数据库连接池状态
+- Digital Human Renderer
+- Lip Sync / Emotion Mapper
 
-## 部署方案
+### 架构变化
 
-### 开发环境
+```
+LLM Reply Text
+  ├─ TTS -> audio
+  └─ emotion tag
+         ↓
+Digital Human Renderer
+  ├─ lip sync
+  ├─ expression
+  └─ motion preset
+         ↓
+Client Playback
+```
 
-- 所有服务运行在本地
-- PostgreSQL / Redis 使用 Docker 或本地安装
-- 使用 `npm run dev` 启动各服务
+### 设计原则
 
-### 生产环境
+- 数字人只是老师的呈现层
+- 不能反过来主导老师的数据模型
+- 必须有纯语音模式作为降级路径
 
-- 使用 Docker Compose 或 Kubernetes 部署
-- Nginx 作为反向代理
-- PostgreSQL / Redis 使用云服务或独立部署
-- 使用 PM2 / systemd 管理进程
+## 推荐数据边界
 
-## 扩展性考虑
+### API Service
 
-### 供应商扩展
+- 用户
+- 老师
+- 场景
+- 会话元数据
+- 历史记录
 
-- 新增供应商只需在配置文件中添加
-- 对于非 OpenAI 兼容的服务，编写适配器
+### Realtime Orchestrator
 
-### 功能扩展
+- 临时会话状态
+- 当前对话轮次
+- 中断状态
 
-- 新增评测维度（如情感识别）
-- 新增练习模式（如跟读模式）
-- 新增报告类型（如周报、月报）
+### Worker
 
-### 性能扩展
+- 异步评测
+- 总结生成
+- 反馈写回
 
-- API Service / Realtime Orchestrator 可水平扩展
-- Worker Service 可增加实例数
-- Redis 可使用集群模式
-- PostgreSQL 可使用读写分离
+### Provider Gateway
+
+- 所有 AI 能力统一入口
+- 屏蔽供应商差异
+
+## 当前项目的最佳结合方式
+
+当前仓库里最应该保留的中台能力是 `provider-gateway`。  
+最应该改造的是产品入口和业务模型。  
+最不应该继续保留的是“工具页驱动”的首页叙事。
+
+## 一句话结论
+
+架构要服务产品。这个产品的架构演进路径应该是：
+
+**老师静态配置 -> 老师后端实体 -> 实时语音服务 -> 反馈异步化 -> 数字人渲染层。**
